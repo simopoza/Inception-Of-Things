@@ -21,15 +21,30 @@ while [ ! -f /var/lib/rancher/k3s/server/node-token ]; do
   sleep 2
 done
 
-# Share token and public key
+# Prepare shared directory
 mkdir -p /vagrant/shared
+
+# Share node-token
 cp /var/lib/rancher/k3s/server/node-token /vagrant/shared/node-token
 
-# Generate SSH key for passwordless access
-sudo -u vagrant ssh-keygen -t rsa -N "" -f /home/vagrant/.ssh/id_rsa
-sudo -u vagrant cp /home/vagrant/.ssh/id_rsa.pub /vagrant/shared/id_rsa.pub
+# Generate SSH key pair if missing
+if [ ! -f /home/vagrant/.ssh/id_rsa ]; then
+  sudo -u vagrant ssh-keygen -t rsa -N "" -f /home/vagrant/.ssh/id_rsa
+fi
 
-# Set up kubectl config for vagrant user
+# Share public + private keys with agent
+cp /home/vagrant/.ssh/id_rsa /vagrant/shared/id_rsa
+cp /home/vagrant/.ssh/id_rsa.pub /vagrant/shared/id_rsa.pub
+
+# Accept agent's public key for reverse SSH (if exists)
+if [ -f /vagrant/shared/id_rsa.pub ]; then
+  mkdir -p /home/vagrant/.ssh
+  cat /vagrant/shared/id_rsa.pub >> /home/vagrant/.ssh/authorized_keys
+  chmod 600 /home/vagrant/.ssh/authorized_keys
+  chown -R vagrant:vagrant /home/vagrant/.ssh
+fi
+
+# Set up kubectl for vagrant user
 sudo chmod 644 /etc/rancher/k3s/k3s.yaml
 mkdir -p /home/vagrant/.kube
 sudo cp /etc/rancher/k3s/k3s.yaml /home/vagrant/.kube/config

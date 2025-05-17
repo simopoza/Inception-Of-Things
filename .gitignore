@@ -1,1 +1,4 @@
 shared/
+.vagrant/
+.gitignore
+.dist/
